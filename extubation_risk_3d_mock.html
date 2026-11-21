@@ -192,6 +192,12 @@
     background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 11px;line-height:1.7;max-width:240px;
   }
   .legend .bar{display:inline-block;width:34px;height:7px;border-radius:4px;margin-right:5px;vertical-align:middle;background:linear-gradient(90deg,var(--green),var(--amber) 55%,var(--red))}
+  .legend .sw{display:inline-block;width:14px;height:3px;border-radius:2px;margin:0 4px 2px 0;vertical-align:middle}
+  .legend .sw.risk{background:linear-gradient(90deg,var(--green),var(--amber),var(--red))}
+  .legend .sw.spo2{background:#4fd1ff}
+  .legend .sw.peep{background:#ffc46b}
+  .legend .sw.rr{background:#c9a6ff}
+  .legend .sw.hr{background:#ff8fb0}
 
   .first{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:rgba(4,8,16,.8);backdrop-filter:blur(4px)}
   .first .box{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:26px 28px;max-width:420px;text-align:center}
@@ -288,7 +294,9 @@
 
 <div class="legend">
   <span class="bar"></span>低 ⇢ 高（上が危険）<br>
-  線＝24時間の軌跡、丸＝いまの値<br>
+  <span class="sw risk"></span>失敗確率（太線＝24時間の軌跡、丸＝いま）<br>
+  <span class="sw spo2"></span>SpO2 <span class="sw peep"></span>PEEP<br>
+  <span class="sw rr"></span>呼吸数 <span class="sw hr"></span>心拍数<br>
   右の指標は赤＝押し上げ／緑＝押し下げ
 </div>
 
@@ -691,6 +699,10 @@ function drawBox(){
   [0,0.5,1].forEach(z=>{
     text3d(-0.03,-0.02,z, Math.round(z*100)+"%", tickCol(), 9.5, "right");
   });
+  // 確率軸のガイド（左奥の縦線に添える）
+  [0.25,0.75].forEach(z=>{
+    text3d(-0.03,-0.02,z, Math.round(z*100)+"%", state.light ? "rgba(40,70,100,.40)" : "rgba(160,200,235,.38)", 8.5, "right");
+  });
 }
 
 // 患者の失敗確率の波形（1本だけ、時間軸方向）
@@ -699,7 +711,7 @@ function drawPatientWave(){
   if (!c) return;
   const n = 240;
   const cat = catOf(riskAtT(c, state.t));
-  const idx = clamp(state.t / WINDOW_SEC, 0, 1);
+  const idx = 1;  // 箱の右端が「現在」。8:30時点でも24時間分の履歴がある想定
 
   const pt = f => project(f, 0.5, riskAtT(c, f*WINDOW_SEC));
 
@@ -777,7 +789,7 @@ function drawParamTransitions(){
   const c = selectedCase();
   if (!c) return;
   const n = 120;
-  const idx = clamp(state.t / WINDOW_SEC, 0, 1);
+  const idx = 1;  // 箱の右端が「現在」。8:30時点でも24時間分の履歴がある想定
   // 4本をベッド幅方向に少しずつずらして重ならないようにする
   const laneY = [0.18, 0.38, 0.62, 0.82];
 
@@ -847,7 +859,7 @@ function drawNowPillar(){
   if (!c) return;
   const r = riskAtT(c, state.t);
   const cat = catOf(r);
-  const idx = clamp(state.t / WINDOW_SEC, 0, 1);
+  const idx = 1;  // 箱の右端が「現在」。8:30時点でも24時間分の履歴がある想定
   line([idx, 0.5, 0], [idx, 0.5, r], cat.hex + "55", 1.5, [3,3]);
   const top = project(idx, 0.5, r);
   ctx.save();
@@ -940,6 +952,40 @@ function draw(now){
   drawParamTransitions();
   drawPatientWave();
   drawNowPillar();
+  drawLegend();
+}
+
+// 凡例（確率の線色 + 代表パラメータ）
+function drawLegend(){
+  const rows = [
+    {color: catOf(riskAtT(selectedCase() || CASES[0], state.t)).hex, label:"失敗確率"},
+    ...PARAMS.map(p=>({color:p.color, label:p.label}))
+  ];
+  const padX = 10, padY = 8, rowH = 16;
+  const w = 132, h = padY*2 + rowH*rows.length + 16;
+  const x = 12, y = H - h - 12;
+  ctx.save();
+  ctx.beginPath();
+  roundRect(x, y, w, h, 8);
+  ctx.fillStyle = state.light ? "rgba(255,255,255,.92)" : "rgba(9,14,24,.86)";
+  ctx.fill();
+  ctx.strokeStyle = state.light ? "rgba(40,80,120,.25)" : "rgba(120,190,255,.22)";
+  ctx.lineWidth = 1; ctx.stroke();
+
+  ctx.font = "600 10px 'Inter','Hiragino Sans','Noto Sans JP',sans-serif";
+  ctx.fillStyle = state.light ? "rgba(30,50,75,.75)" : "rgba(200,225,250,.75)";
+  ctx.textAlign = "left";
+  ctx.fillText("凡例（時間軸の帯）", x + padX, y + padY + 10);
+
+  ctx.font = "11px 'Inter','Hiragino Sans','Noto Sans JP',sans-serif";
+  rows.forEach((r, i)=>{
+    const ry = y + padY + 20 + i*rowH;
+    ctx.strokeStyle = r.color; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(x+padX, ry+5); ctx.lineTo(x+padX+16, ry+5); ctx.stroke();
+    ctx.fillStyle = state.light ? "rgba(30,50,75,.88)" : "rgba(232,242,255,.88)";
+    ctx.fillText(r.label, x+padX+22, ry+9);
+  });
+  ctx.restore();
 }
 
 // ===== ループ =====
