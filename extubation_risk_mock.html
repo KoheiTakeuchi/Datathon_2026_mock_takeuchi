@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>抜管失敗の確率 — Team 3 / Datathon Japan 2026</title>
+<style>
+  :root{
+    --bg:#f4f6f9;
+    --panel:#ffffff;
+    --panel-2:#f9fafc;
+    --ink:#101826;
+    --sub:#5b6b80;
+    --line:#e3e8ef;
+    --blue:#1f6feb;
+    --blue-soft:#eaf1fe;
+    --green:#0f8a5f;
+    --green-soft:#e6f6ee;
+    --amber:#a5670a;
+    --amber-soft:#fdf3df;
+    --red:#c93747;
+    --red-soft:#fdecee;
+    --strip:#ffffff;
+    --track:#eef1f6;
+    --shadow:0 1px 2px rgba(16,24,38,.06),0 8px 24px rgba(16,24,38,.06);
+    --radius:14px;
+    color-scheme:light;
+  }
+  html[data-theme="dark"]{
+    --bg:#0b1017;
+    --panel:#121926;
+    --panel-2:#0f1622;
+    --ink:#e9eff7;
+    --sub:#8d9cb2;
+    --line:#223044;
+    --blue:#61a8ff;
+    --blue-soft:#13263f;
+    --green:#3fd39b;
+    --green-soft:#0f2b23;
+    --amber:#f2b44a;
+    --amber-soft:#2c2211;
+    --red:#ff7d8e;
+    --red-soft:#301620;
+    --strip:#0e1622;
+    --track:#1b2737;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    --radius:14px;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:"Inter","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+    font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  }
+  button,input,select{font:inherit;color:inherit}
+  h1,h2,h3{margin:0}
+  .muted{color:var(--sub)}
+  .tabular{font-variant-numeric:tabular-nums}
+
+  /* ===== デモ帯（位置情報モックの #demoBar と同じ構成） ===== */
+  #demoBar{
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:6px 16px;background:var(--strip);border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;
+  }
+  #demoBar.collapsed #demoBody{display:none}
+  #demoBar.collapsed{padding:2px 16px;gap:0}
+  .demo-flag{font-size:11px;color:var(--sub);flex:none}
+  .demo-flag b{color:var(--blue)}
+  #demoBody{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:0}
+  .ps-label{font-size:11px;color:var(--sub);flex:none}
+  .btn{
+    border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:4px 10px;font-size:12px;cursor:pointer;text-decoration:none;color:var(--ink);
+    display:inline-flex;align-items:center;gap:6px;flex:none;white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--blue);color:var(--blue)}
+  .btn.icon{padding:4px 8px}
+  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .btn.primary:hover{filter:brightness(1.06);color:#fff}
+  #speedSel{
+    border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:3px 8px;font-size:12px;flex:none;
+  }
+  #spacer{flex:1}
+  .theme-toggle{display:flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--panel);flex:none}
+  .theme-toggle button{display:flex;align-items:center;justify-content:center;width:26px;height:24px;border:none;border-radius:999px;background:transparent;color:var(--sub);cursor:pointer;padding:0}
+  .theme-toggle button:hover{color:var(--ink)}
+  .theme-toggle button.active{background:var(--blue-soft);color:var(--blue)}
+  .theme-toggle svg{width:15px;height:15px;display:block}
+
+  /* ===== 全体レイアウト（スマホでも縦積みで自然に） ===== */
+  .wrap{
+    max-width:1240px;margin:0 auto;padding:18px 20px 28px;
+    display:grid;gap:16px;
+  }
+  .head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+  .head h1{font-size:18px;font-weight:650;letter-spacing:.01em}
+  .head p{margin:2px 0 0;font-size:12px;color:var(--sub)}
+  .clock{
+    border:1px solid var(--line);background:var(--panel);border-radius:10px;
+    padding:6px 12px;font-size:12px;color:var(--sub);white-space:nowrap;
+  }
+  .clock b{color:var(--ink);font-size:16px;font-weight:600;margin-right:6px;}
+  .layout{display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:16px;align-items:start}
+
+  /* ===== 患者（検索＋並べたカード） ===== */
+  .list{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .list-head{padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+  .list-head h2{font-size:12px;font-weight:650;letter-spacing:.04em;color:var(--sub);display:flex;justify-content:space-between}
+  .list-head h2 span{color:var(--sub);font-weight:500}
+  .search{display:flex;align-items:center;gap:8px;margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--panel-2)}
+  .search svg{width:15px;height:15px;color:var(--sub);flex:none}
+  .search input{border:0;background:transparent;outline:none;width:100%;font-size:13px}
+  .pat-list{display:flex;flex-direction:column;padding:8px;gap:6px;max-height:min(560px,62vh);overflow:auto}
+  .pat-card{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;align-items:center;text-align:left;
+    border:1px solid var(--line);background:var(--panel-2);border-radius:11px;padding:9px 11px;cursor:pointer;
+  }
+  .pat-card:hover{border-color:var(--blue)}
+  .pat-card.active{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-soft);background:var(--panel)}
+  .pat-name{font-weight:600;font-size:13px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pat-sub{font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pat-pct{font-size:20px;font-weight:650;line-height:1;letter-spacing:-.02em;text-align:right}
+  .pat-pct.good{color:var(--green)} .pat-pct.mid{color:var(--amber)} .pat-pct.bad{color:var(--red)}
+  .pat-cat{font-size:10px;font-weight:600;text-align:right;grid-column:2}
+  .pat-meter{grid-column:1/-1;height:4px;border-radius:999px;background:var(--track);overflow:hidden;margin-top:5px}
+  .pat-meter i{display:block;height:100%;border-radius:999px}
+  .pat-meter i.good{background:var(--green)} .pat-meter i.mid{background:var(--amber)} .pat-meter i.bad{background:var(--red)}
+  .empty-hint{padding:18px;text-align:center;color:var(--sub);font-size:12px}
+
+  /* ===== 右側パネル ===== */
+  .right{display:grid;gap:16px;min-width:0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}
+  .card-pad{padding:14px 16px}
+  .card-title{font-size:12px;font-weight:650;letter-spacing:.04em;color:var(--sub);display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+  .card-title .hint{font-weight:400;font-size:11px;color:var(--sub)}
+
+  /* 未選択（枠なしの控えめな案内） */
+  .empty-note{color:var(--sub);font-size:13px;line-height:1.7;padding:8px 2px}
+  .empty-note b{display:block;color:var(--ink);font-size:15px;margin-bottom:2px}
+
+  /* 選択中の患者 */
+  .pat-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .pat-head h2{font-size:17px;font-weight:650}
+  .pat-head .sub{font-size:12px;color:var(--sub);margin-top:2px}
+  .pat-head .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .tag{font-size:11px;color:var(--sub);border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:var(--panel-2)}
+
+  /* ===== 失敗確率を主役に ===== */
+  .hero{background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%)}
+  .hero-grid{display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:center}
+  .hero-num{font-size:clamp(56px,9vw,112px);font-weight:700;line-height:.92;letter-spacing:-.05em}
+  .hero-num span{font-size:.34em;font-weight:600;letter-spacing:0;margin-left:2px;color:var(--sub)}
+  .hero-num.good{color:var(--green)} .hero-num.mid{color:var(--amber)} .hero-num.bad{color:var(--red)}
+  .hero-cat{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:650}
+  .hero-cat.good{background:var(--green-soft);color:var(--green)}
+  .hero-cat.mid{background:var(--amber-soft);color:var(--amber)}
+  .hero-cat.bad{background:var(--red-soft);color:var(--red)}
+  .hero-note{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.6}
+  .hero-note b{color:var(--ink)}
+  .hero-side{min-width:0}
+  .risk-track{height:10px;border-radius:999px;background:linear-gradient(90deg,var(--green-soft),var(--amber-soft) 45%,var(--red-soft) 70%);position:relative;margin:10px 0 4px}
+  .risk-knob{position:absolute;top:-4px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--panel);border:3px solid currentColor;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+  .risk-ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--sub)}
+
+  /* 2枚並び */
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;min-width:0}
+
+  /* 推移（株価チャート風） */
+  .chart-meta{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-size:12px;color:var(--sub);margin-bottom:4px}
+  .chart-meta b{font-size:16px;color:var(--ink);font-weight:650}
+  .chart-legend{display:inline-flex;gap:10px;font-size:10px;color:var(--sub);white-space:nowrap}
+  .chart-legend i{display:inline-block;width:12px;border-top:2px solid var(--blue);vertical-align:middle;margin-right:4px}
+  .chart-legend i.tgt{border-top:2px dashed var(--green)}
+  .chart-box{position:relative;height:150px;margin-top:2px}
+  .chart-box svg{width:100%;height:100%;display:block;overflow:visible}
+  .chart-cursor{position:absolute;top:0;bottom:18px;width:1px;background:var(--amber);pointer-events:none}
+  .chart-tip{position:absolute;top:-2px;transform:translateX(-50%);font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;white-space:nowrap;pointer-events:none;color:var(--ink)}
+  .x-axis{display:flex;justify-content:space-between;font-size:10px;color:var(--sub);margin-top:2px}
+
+  /* 原因 */
+  .cause{display:flex;flex-direction:column;gap:9px}
+  .cause-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;align-items:baseline}
+  .cause-row .nm{font-size:13px}
+  .cause-row .val{font-size:11px;color:var(--sub)}
+  .cause-row .pt{font-size:12px;font-weight:650;color:var(--red)}
+  .cause-row .bar{grid-column:1/-1;height:5px;border-radius:999px;background:var(--track);overflow:hidden}
+  .cause-row .bar i{display:block;height:100%;background:var(--red);border-radius:999px}
+
+  /* バイタル */
+  .vitals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .vital{border:1px solid var(--line);border-radius:11px;padding:9px 11px;background:var(--panel-2)}
+  .vital .k{font-size:11px;color:var(--sub);display:flex;justify-content:space-between;gap:6px}
+  .vital .v{font-size:22px;font-weight:600;line-height:1.2}
+  .vital .v small{font-size:10px;color:var(--sub);font-weight:400;margin-left:2px}
+  .vital .spark{width:100%;height:22px;margin-top:4px;display:block}
+  .delta{font-size:11px;font-weight:600}
+  .delta.bad{color:var(--red)} .delta.good{color:var(--green)} .delta.flat{color:var(--sub)}
+
+  /* 狭い画面 */
+  @media(max-width:900px){
+    .layout{grid-template-columns:1fr}
+    .pat-list{flex-direction:row;overflow-x:auto;max-height:none;scroll-snap-type:x mandatory}
+    .pat-card{min-width:220px;scroll-snap-align:start}
+    .two{grid-template-columns:1fr}
+  }
+  @media(max-width:640px){
+    .wrap{padding:12px 12px 20px}
+    .hero-grid{grid-template-columns:1fr;gap:12px}
+    .hero-num{font-size:clamp(56px,18vw,80px)}
+    .head h1{font-size:16px}
+    #spacer{display:none}
+    .demo-flag{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- 1段目: デモ帯（位置情報モックと同じ仕組み: 表示/非表示・倍速・時刻スライダー・テーマ） -->
+<div id="demoBar">
+  <span class="demo-flag"><b>デモ</b> 合成データ・仮ロジック</span>
+  <button class="btn icon" id="demoToggle" title="操作を表示/非表示">非表示</button>
+  <div id="demoBody">
+    <span class="ps-label">倍速</span>
+    <select id="speedSel" title="再生速度: ×1=実時間と同じ">
+      <option value="1" selected>×1（実時間）</option>
+      <option value="10">×10</option>
+      <option value="60">×60</option>
+      <option value="300">×300</option>
+    </select>
+    <span class="ps-label">時刻</span>
+    <input type="range" id="timeSlider" min="0" max="86400" step="1" value="0"
+           title="08:30（24時間前）から始まり、×1で1秒ごとに進みます"
+           aria-label="時刻を選ぶ" aria-valuetext="08:30:00から開始">
+    <button class="btn" id="playBtn" aria-label="再生" title="再生 / 停止（Space）">▶ 再生</button>
+    <span id="spacer"></span>
+    <a class="btn" href="extubation_risk_3d_mock.html" title="遊び心のある3Dビューへ">3Dビュー</a>
+    <div class="theme-toggle" role="group" aria-label="表示テーマ">
+      <button type="button" id="themeLight" title="ライト表示" aria-label="ライト表示">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><g stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="8" y1="1.2" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="14.8"/><line x1="1.2" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="14.8" y2="8"/><line x1="3.2" y1="3.2" x2="4.5" y2="4.5"/><line x1="11.5" y1="11.5" x2="12.8" y2="12.8"/><line x1="3.2" y1="12.8" x2="4.5" y2="11.5"/><line x1="11.5" y1="4.5" x2="12.8" y2="3.2"/></g></svg>
+      </button>
+      <button type="button" id="themeDark" title="ダーク表示" aria-label="ダーク表示">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.9 1.7a6.6 6.6 0 1 0 3.4 11.9 7.4 7.4 0 0 1-3.4-11.9z" fill="currentColor"/></svg>
+      </button>
+    </div>
+    <span class="ps-label" style="display:none">診療判断には使用しない</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1>抜管失敗の確率</h1>
+      <p>抜管後48時間以内の再挿管または死亡 — Team 3 / Datathon Japan 2026</p>
+    </div>
+    <div class="clock" aria-live="polite"><b id="clockNow">--:--:--</b><span id="clockAgo">現在</span></div>
+  </div>
+
+  <div class="layout">
+    <!-- 左: 患者（検索して並べる） -->
+    <section class="list" aria-label="患者一覧">
+      <div class="list-head">
+        <h2>患者 <span id="patCount">-</span></h2>
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="patSearch" type="search" placeholder="ID・病名・年齢で検索" autocomplete="off" aria-label="患者を検索">
+        </label>
+      </div>
+      <div class="pat-list" id="patList"></div>
+    </section>
+
+    <!-- 右: 未選択は案内 / 選択後は確率を主役に -->
+    <div class="right">
+      <section class="empty-note" id="emptyPanel">
+        <b>患者を選んでください</b>
+        左のリストから患者を選ぶと、その時点の抜管失敗の確率と原因が表示されます。
+      </section>
+
+      <div id="panel" hidden>
+        <div class="right">
+          <section class="card card-pad">
+            <div class="pat-head">
+              <div>
+                <h2 id="pName">-</h2>
+                <div class="sub" id="pSub">-</div>
+                <div class="tags" id="pTags"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 主役: 失敗確率 -->
+          <section class="card card-pad hero">
+            <div class="hero-grid">
+              <div>
+                <div class="hero-num tabular" id="failNum">--<span>%</span></div>
+                <div class="hero-cat" id="failCat">-</div>
+              </div>
+              <div class="hero-side">
+                <div class="risk-track">
+                  <span class="risk-knob" id="riskKnob" style="left:0%"></span>
+                </div>
+                <div class="risk-ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+                <div class="hero-note" id="failNote">-</div>
+              </div>
+            </div>
+          </section>
+
+          <div class="two">
+            <section class="card card-pad">
+              <div class="card-title"><span>確率の推移</span><span class="chart-legend"><span><i></i>失敗確率</span><span><i class="tgt"></i>25%</span></span></div>
+              <div class="chart-meta"><span>現在 <b id="chartNow">--</b>%</span><span class="tabular" id="chartDelta">-</span></div>
+              <div class="chart-box">
+                <svg id="chartSvg" preserveAspectRatio="none" role="img" aria-labelledby="chartTitle"><title id="chartTitle">24時間の失敗確率の推移</title></svg>
+                <div class="chart-cursor" id="chartCursor"></div>
+                <div class="chart-tip" id="chartTip"></div>
+              </div>
+              <div class="x-axis"><span>24h前</span><span>18h</span><span>12h</span><span>6h</span><span>現在</span></div>
+            </section>
+
+            <section class="card card-pad">
+              <div class="card-title"><span>確率を上げている原因</span><span class="hint">寄与の大きい順</span></div>
+              <div class="cause" id="causeList"></div>
+            </section>
+          </div>
+
+          <section class="card card-pad">
+            <div class="card-title"><span>バイタル</span><span class="hint" id="vitalNote">-</span></div>
+            <div class="vitals" id="vitalCards"></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== 合成データ（患者を特定できる情報は含まない） =====
+// 数値は画面確認用。実データ・実モデルはここを差し替える。
+const CASES = [
+  {id:"I20384", name:"佐々木 康弘", age:78, sex:"男性", primary:"肺炎 / 敗血症", icuDay:5, mvHours:96,
+   vitals:{hr:104, rr:27, spo2:93, sbp:108}, vent:{fio2:45, peep:8}, gas:{ph:7.36, pco2:46, lactate:1.8},
+   gcs:11, cough:"moderate", secretion:"moderate"},
+  {id:"I20412", name:"中村 由美", age:64, sex:"女性", primary:"食道癌術後", icuDay:4, mvHours:78,
+   vitals:{hr:86, rr:19, spo2:98, sbp:126}, vent:{fio2:30, peep:5}, gas:{ph:7.42, pco2:38, lactate:1.0},
+   gcs:14, cough:"strong", secretion:"none"},
+  {id:"I20455", name:"山本 茂", age:81, sex:"男性", primary:"誤嚥性肺炎", icuDay:7, mvHours:168,
+   vitals:{hr:118, rr:36, spo2:90, sbp:96}, vent:{fio2:60, peep:10}, gas:{ph:7.29, pco2:54, lactate:2.9},
+   gcs:9, cough:"weak", secretion:"abundant"},
+  {id:"I20471", name:"高橋 美咲", age:57, sex:"女性", primary:"急性心不全", icuDay:3, mvHours:52,
+   vitals:{hr:92, rr:21, spo2:96, sbp:112}, vent:{fio2:40, peep:6}, gas:{ph:7.38, pco2:44, lactate:1.4},
+   gcs:13, cough:"moderate", secretion:"moderate"},
+  {id:"I20503", name:"小林 正一", age:70, sex:"男性", primary:"慢性閉塞性肺疾患の増悪", icuDay:6, mvHours:132,
+   vitals:{hr:99, rr:25, spo2:94, sbp:120}, vent:{fio2:38, peep:7}, gas:{ph:7.34, pco2:52, lactate:1.6},
+   gcs:12, cough:"moderate", secretion:"moderate"},
+  {id:"I20538", name:"加藤 大輔", age:44, sex:"男性", primary:"交通外傷 / 骨盤骨折", icuDay:2, mvHours:40,
+   vitals:{hr:88, rr:18, spo2:98, sbp:124}, vent:{fio2:30, peep:5}, gas:{ph:7.43, pco2:37, lactate:1.1},
+   gcs:15, cough:"strong", secretion:"none"},
+  {id:"I20567", name:"渡辺 理恵", age:66, sex:"女性", primary:"胆管炎 / 術後", icuDay:4, mvHours:70,
+   vitals:{hr:95, rr:22, spo2:96, sbp:118}, vent:{fio2:35, peep:6}, gas:{ph:7.40, pco2:41, lactate:1.3},
+   gcs:14, cough:"strong", secretion:"moderate"},
+  {id:"I20604", name:"伊藤 すみ子", age:85, sex:"女性", primary:"肺炎", icuDay:8, mvHours:190,
+   vitals:{hr:112, rr:32, spo2:91, sbp:100}, vent:{fio2:55, peep:9}, gas:{ph:7.31, pco2:50, lactate:2.4},
+   gcs:10, cough:"weak", secretion:"abundant"},
+  {id:"I20631", name:"田中 慎太郎", age:52, sex:"男性", primary:"くも膜下出血", icuDay:3, mvHours:62,
+   vitals:{hr:78, rr:16, spo2:98, sbp:132}, vent:{fio2:30, peep:5}, gas:{ph:7.44, pco2:36, lactate:0.9},
+   gcs:13, cough:"strong", secretion:"none"},
+  {id:"I20678", name:"松本 健太", age:73, sex:"男性", primary:"腹膜炎", icuDay:5, mvHours:110,
+   vitals:{hr:106, rr:28, spo2:94, sbp:106}, vent:{fio2:48, peep:8}, gas:{ph:7.35, pco2:47, lactate:2.1},
+   gcs:11, cough:"moderate", secretion:"abundant"}
+];
+
+// 記録の再生は必ず「24時間前の 08:30」から始まり、×1 で 1秒=1秒で 08:30 まで進む
+const START_SEC = 8*3600 + 30*60;
+const WINDOW_SEC = 86400;
+
+// ===== 状態 =====
+// t: 再生位置（秒）。0 = 24時間前の 08:30、86400 = 当日の 08:30（現在）
+const state = {
+  caseId:null,
+  t:0,
+  playing:false,
+  speed:1,
+  query:"",
+  light:false
+};
+
+const $ = id => document.getElementById(id);
+const byId = () => CASES.find(c => c.id === state.caseId) || null;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+// 何分前の記録か（0 = 現在、1440 = 24時間前）
+function backMinutes(){ return Math.max(0, Math.round((WINDOW_SEC - state.t) / 60)); }
+
+function fmtClock(tSec){
+  const total = ((START_SEC + Math.round(tSec)) % 86400 + 86400) % 86400;
+  const h = String(Math.floor(total/3600)).padStart(2,"0");
+  const m = String(Math.floor(total/60)%60).padStart(2,"0");
+  const s = String(total%60).padStart(2,"0");
+  return `${h}:${m}:${s}`;
+}
+const clockAtT = tSec => fmtClock(tSec);
+
+const M0 = WINDOW_SEC / 60;   // 1440
+
+function agoText(){
+  const min = backMinutes();
+  if (min <= 0) return "現在";
+  if (min < 60) return `${min}分前`;
+  const h = Math.floor(min/60), mm = min%60;
+  return mm ? `${h}時間${mm}分前` : `${h}時間前`;
+}
+
+// ===== 時点ごとの値（決定的な擬似ノイズ。同じ時刻なら常に同じ値） =====
+// d = 「何時間前か」（0 = 現在、24 = 24時間前）。d が大きいほど前の記録
+function seeded(id, salt){
+  let h = 2166136261;
+  const s = id + ":" + salt;
+  for (let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (((h >>> 0) % 10000) / 10000) * Math.PI * 2;
+}
+function wave(c, key, d, period, amp){
+  const p = (d / period) * Math.PI * 2;
+  return Math.sin(p + seeded(c.id, key)) * amp
+       + Math.sin(p * 2.4 + seeded(c.id, key + "b")) * amp * 0.45;
+}
+
+// その時点で記録されている値だけ（未来は使わない）
+function snapshotAt(c, d){
+  const v = c.vitals;
+  return {
+    hr:  Math.round(v.hr  + wave(c,"hr",  d, 3.2, 4.0) + d * 0.55),
+    rr:  Math.round(v.rr  + wave(c,"rr",  d, 2.5, 1.6) + d * 0.16),
+    spo2:Math.round(clamp(v.spo2 + wave(c,"spo2",d, 2.8, 1.0) - d * 0.16, 70, 100)),
+    peep:Math.round(clamp(c.vent.peep + d * 0.45, 5, 20)),
+    fio2:Math.round(clamp((c.vent.fio2 + d * 0.8) / 5, 2, 20)) * 5,
+    ph:  +(c.gas.ph - d * 0.002).toFixed(2),
+    pco2:Math.round(c.gas.pco2 + d * 0.22),
+    lactate:+(c.gas.lactate + d * 0.03).toFixed(1),
+    gcs: Math.round(clamp(c.gcs + d * 0.18, 3, 15)),
+    mvHours: Math.round(Math.max(0, c.mvHours - d))
+  };
+}
+
+// ===== 仮モデル（線形ロジスティック。APIに差し替える箇所） =====
+// d: 何時間前の記録か（0 = 現在 / 24 = 24時間前）
+function predict(c, d){
+  const s = snapshotAt(c, d);
+  const terms = [
+    {label:"年齢",        value:(c.age - 65) * 0.012,        detail:c.age + "歳"},
+    {label:"人工呼吸期間", value:(s.mvHours - 72) * 0.004,   detail:s.mvHours + "時間"},
+    {label:"呼吸回数",     value:(s.rr - 20) * 0.038,        detail:s.rr + "回/分"},
+    {label:"心拍数",       value:(s.hr - 90) * 0.006,        detail:s.hr + "bpm"},
+    {label:"SpO2",        value:(95 - s.spo2) * 0.085,      detail:s.spo2 + "%"},
+    {label:"PEEP",        value:(s.peep - 6) * 0.070,       detail:s.peep + "cmH2O"},
+    {label:"FiO2",        value:(s.fio2 - 35) * 0.012,      detail:s.fio2 + "%"},
+    {label:"GCS",         value:(14 - s.gcs) * 0.095,       detail:s.gcs + "点"},
+    {label:"PaCO2",       value:(s.pco2 - 40) * 0.012,      detail:s.pco2 + "mmHg"},
+    {label:"pH",          value:(7.40 - s.ph) * 2.0,        detail:s.ph.toFixed(2)},
+    {label:"乳酸",        value:(s.lactate - 1.2) * 0.22,   detail:s.lactate.toFixed(1) + "mmol/L"},
+    {label:"咳の強さ",     value:({strong:-0.25, moderate:0.10, weak:0.45})[c.cough], detail:({strong:"強い",moderate:"中等度",weak:"弱い"})[c.cough]},
+    {label:"分泌物",       value:({none:-0.15, moderate:0.10, abundant:0.38})[c.secretion], detail:({none:"少量",moderate:"中等量",abundant:"多量"})[c.secretion]}
+  ];
+  const z = -2.05 + terms.reduce((acc,t)=>acc+t.value, 0);
+  return {risk:1/(1+Math.exp(-z)), terms, snap:s};
+}
+
+// 判定（低 / 中 / 高）— 失敗確率が主役なので失敗側で区切る
+function failCat(risk){
+  if (risk < 0.15) return {cls:"good", label:"低い", note:"通常の観察で経過を見られる見込みです。"};
+  if (risk < 0.30) return {cls:"mid",  label:"中程度", note:"抜管前のチェックを丁寧に。再挿管の準備を確認してください。"};
+  return {cls:"bad", label:"高い", note:"抜管可否を再評価し、上位者への相談を検討してください。"};
+}
+const pct = r => (r*100).toFixed(1);
+
+// 24時間の推移（10分刻み。d = 24 → 0 の順＝古い記録から現在へ）
+function series(c){
+  const out = [];
+  for (let m = 0; m <= M0; m += 10){
+    out.push({m, r: predict(c, (M0 - m) / 60).risk});
+  }
+  return out;
+}
+
+// ===== 時刻の操作（位置情報モックと同じ: 実時間ベースの再生） =====
+let lastReal = performance.now();
+let sliderDrag = false;
+function tick(now){
+  const dt = (now - lastReal) / 1000;
+  lastReal = now;
+  if (state.playing){
+    state.t = Math.min(WINDOW_SEC, state.t + dt * state.speed);
+    if (state.t >= WINDOW_SEC){ state.t = WINDOW_SEC; setPlaying(false); }
+    render(false);
+  }
+  requestAnimationFrame(tick);
+}
+function setPlaying(on){
+  state.playing = on;
+  const b = $("playBtn");
+  b.textContent = on ? "❚❚ 停止" : "▶ 再生";
+  b.setAttribute("aria-label", on ? "停止" : "再生");
+  b.classList.toggle("primary", on);
+}
+function jumpTo(t){
+  state.t = clamp(t, 0, WINDOW_SEC);
+  render(true);
+}
+
+// 検索用の正規化（全角→半角、カタカナ→ひらがな、大小文字を無視）
+function norm(s){
+  return String(s || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[\u30a1-\u30f6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60))
+    .replace(/[\s　]+/g, " ")
+    .trim();
+}
+
+// ===== 患者一覧（検索して並べる） =====
+function renderList(){
+  const terms = norm(state.query).split(/\s+/).filter(Boolean);
+  const list = $("patList");
+  const rows = CASES.filter(c=>{
+    if (!terms.length) return true;
+    const hay = norm([c.id, c.name, c.primary, c.comorbidities || "", c.age + "歳", c.sex].join(" "));
+    return terms.every(t=>hay.includes(t));
+  });
+  $("patCount").textContent = rows.length + "件";
+  if (!rows.length){
+    list.innerHTML = `<div class="empty-hint">該当する患者がありません</div>`;
+    return;
+  }
+  list.innerHTML = "";
+  rows.forEach(c=>{
+    const r = predict(c, backMinutes() / 60).risk;
+    const cat = failCat(r);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pat-card" + (c.id === state.caseId ? " active" : "");
+    btn.setAttribute("aria-pressed", c.id === state.caseId ? "true" : "false");
+    btn.innerHTML = `
+      <span class="pat-name">${c.name}</span>
+      <span class="pat-pct ${cat.cls}">${Math.round(r*100)}<small style="font-size:11px">%</small></span>
+      <span class="pat-sub">${c.id}・${c.age}歳 ${c.sex}・${c.primary}</span>
+      <span class="pat-cat ${cat.cls}" style="color:var(--${cat.cls === 'good' ? 'green' : cat.cls === 'mid' ? 'amber' : 'red'})">${cat.label}</span>
+      <span class="pat-meter"><i class="${cat.cls}" style="width:${clamp(r*100,3,100)}%"></i></span>
+    `;
+    btn.addEventListener("click", ()=>{
+      state.caseId = c.id;
+      render(true);
+    });
+    list.appendChild(btn);
+  });
+}
+
+// ===== 選択中の患者 =====
+function renderPanel(){
+  const c = byId();
+  $("emptyPanel").hidden = !!c;
+  $("panel").hidden = !c;
+  if (!c) return;
+
+  const minBack = backMinutes();
+  const p = predict(c, minBack / 60);
+  const r = p.risk;
+  const cat = failCat(r);
+
+  $("pName").textContent = c.name;
+  $("pSub").textContent = `${c.id}・${c.age}歳 ${c.sex}・${c.primary}`;
+  $("pTags").innerHTML = [`ICU ${c.icuDay}日目`, `人工呼吸 ${p.snap.mvHours}時間`, `${clockAtT(state.t)} 時点の記録`]
+    .map(t=>`<span class="tag">${t}</span>`).join("");
+
+  const num = $("failNum");
+  num.className = "hero-num tabular " + cat.cls;
+  num.innerHTML = `${pct(r)}<span>%</span>`;
+  const cEl = $("failCat");
+  cEl.className = "hero-cat " + cat.cls;
+  cEl.textContent = `失敗の確率は${cat.label}`;
+  $("failNote").innerHTML = `${cat.note}<br><span class="muted">${agoText()}までの記録だけで計算（成功見込み <b style="color:var(--ink)">${pct(1-r)}%</b>）</span>`;
+  $("riskKnob").style.left = clamp(r*100,0,100) + "%";
+  $("riskKnob").style.color = `var(--${cat.cls === 'good' ? 'green' : cat.cls === 'mid' ? 'amber' : 'red'})`;
+
+  renderChart(c);
+  renderCause(p);
+  renderVitals(c, p);
+}
+
+function renderCause(p){
+  const up = p.terms.filter(t=>t.value > 0).sort((a,b)=>b.value-a.value).slice(0,4);
+  const el = $("causeList");
+  if (!up.length){
+    el.innerHTML = `<div class="muted" style="font-size:12px">この時点で、失敗確率を上げている要因はありません。</div>`;
+    return;
+  }
+  const max = Math.max(...up.map(t=>t.value), 0.01);
+  el.innerHTML = up.map(t=>`
+    <div class="cause-row">
+      <span class="nm">${t.label} <span class="val">${t.detail}</span></span>
+      <span class="pt">+${t.value.toFixed(2)}</span>
+      <span class="bar"><i style="width:${Math.max(6, t.value/max*100)}%"></i></span>
+    </div>`).join("");
+}
+
+function renderVitals(c, p){
+  const s = p.snap;
+  const prev = snapshotAt(c, backMinutes() / 60 + 5 / 60);
+  const d = (cur, before, unit, invert)=>{
+    const diff = cur - before;
+    if (Math.abs(diff) < 0.5) return `<span class="delta flat">±0${unit}</span>`;
+    const bad = invert ? diff > 0 : diff < 0;
+    return `<span class="delta ${bad ? "bad" : "good"}">${diff>0?"+":""}${Math.round(diff)}${unit}</span>`;
+  };
+  const spark = (key, color)=>{
+    const pts = [];
+    for (let i=5;i>=0;i--){ pts.push(snapshotAt(c, backMinutes() / 60 + i * 5 / 60)[key]); }
+    const min = Math.min(...pts), max = Math.max(...pts), span = Math.max(1, max-min);
+    const poly = pts.map((v,i)=>`${(i*100/(pts.length-1)).toFixed(1)},${(20 - (v-min)/span*16).toFixed(1)}`).join(" ");
+    return `<svg class="spark" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true"><polyline points="${poly}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
+  };
+  const items = [
+    {k:"心拍数", v:s.hr, u:"bpm", d:d(s.hr, prev.hr, "", false), sp:spark("hr","var(--red)")},
+    {k:"呼吸回数", v:s.rr, u:"/分", d:d(s.rr, prev.rr, "", false), sp:spark("rr","var(--amber)")},
+    {k:"SpO2", v:s.spo2, u:"%", d:d(s.spo2, prev.spo2, "%", true), sp:spark("spo2","var(--blue)")}
+  ];
+  $("vitalCards").innerHTML = items.map(it=>`
+    <div class="vital">
+      <div class="k"><span>${it.k}</span>${it.d}</div>
+      <div class="v tabular">${it.v}<small>${it.u}</small></div>
+      ${it.sp}
+    </div>`).join("");
+  $("vitalNote").textContent = `${clockAtT(state.t)} の値（差は5分前比）`;
+}
+
+// ===== 推移チャート（失敗確率。上が危険） =====
+function renderChart(c){
+  const pts = series(c);
+  const svg = $("chartSvg");
+  const box = svg.getBoundingClientRect();
+  const W = Math.max(200, box.width), H = Math.max(90, box.height - 18);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const lo = 0, hi = Math.max(0.4, Math.ceil(Math.max(...pts.map(p=>p.r)) * 10) / 10);
+  const x = m => m / M0 * (W - 2) + 1;
+  const y = r => H - 2 - (clamp(r,lo,hi) - lo) / (hi - lo) * (H - 4);
+  const d = pts.map((p,i)=>`${i?"L":"M"}${x(p.m).toFixed(1)},${y(p.r).toFixed(1)}`).join(" ");
+  const area = `${d} L${W-1},${H} L1,${H} Z`;
+  const grid = [0, 0.5, 1].map(t=>{
+    const yy = y(lo + (hi-lo)*t);
+    return `<line x1="0" y1="${yy.toFixed(1)}" x2="${W}" y2="${yy.toFixed(1)}" stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+  }).join("");
+  const target = y(0.25);
+  svg.innerHTML = grid +
+    (hi >= 0.25 ? `<line x1="0" y1="${target.toFixed(1)}" x2="${W}" y2="${target.toFixed(1)}" stroke="var(--green)" stroke-width="1.4" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" opacity=".8"/>` : "") +
+    `<path d="${area}" fill="var(--blue-soft)"/>` +
+    `<path d="${d}" fill="none" stroke="var(--blue)" stroke-width="2.2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` +
+    `<circle cx="${(W-1).toFixed(1)}" cy="${y(pts[pts.length-1].r).toFixed(1)}" r="3" fill="var(--blue)" stroke="var(--panel)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+
+  const cur = pts[pts.length-1].r, first = pts[0].r;
+  $("chartNow").textContent = pct(cur);
+  const diff = (cur - first) * 100;
+  const badge = $("chartDelta");
+  badge.textContent = `24hで ${diff>=0?"+":""}${diff.toFixed(1)}pt`;
+  badge.style.color = diff > 0.05 ? "var(--red)" : diff < -0.05 ? "var(--green)" : "var(--sub)";
+
+  const curMin = backMinutes();
+  const left = (M0 - curMin) / M0 * 100;
+  $("chartCursor").style.left = left + "%";
+  const tip = $("chartTip");
+  tip.style.left = clamp(left, 9, 91) + "%";
+  tip.textContent = `${clockAtT(state.t)} ${pct(predict(c, curMin / 60).risk)}%`;
+}
+
+// ===== 描画 =====
+function render(syncSlider){
+  if (syncSlider || !sliderDrag){
+    $("timeSlider").value = Math.round(state.t);
+  }
+  $("timeSlider").setAttribute("aria-valuetext", `${clockAtT(state.t)}（${agoText()}）`);
+  $("clockNow").textContent = fmtClock(state.t);
+  $("clockAgo").textContent = state.playing ? `再生中 ×${state.speed}` : agoText();
+  renderList();
+  renderPanel();
+}
+
+// ===== 操作 =====
+$("timeSlider").addEventListener("pointerdown", ()=>{ sliderDrag = true; });
+$("timeSlider").addEventListener("pointerup", ()=>{ sliderDrag = false; });
+$("timeSlider").addEventListener("input", e=>{
+  setPlaying(false);
+  state.t = Number(e.target.value);
+  lastReal = performance.now();
+  render(true);
+});
+
+$("playBtn").addEventListener("click", ()=>{
+  if (!state.playing && state.t >= WINDOW_SEC) state.t = 0;
+  lastReal = performance.now();
+  setPlaying(!state.playing);
+});
+
+$("speedSel").addEventListener("change", e=>{ state.speed = Number(e.target.value); });
+
+$("patSearch").addEventListener("input", e=>{
+  state.query = e.target.value;
+  renderList();
+});
+
+$("demoToggle").addEventListener("click", ()=>{
+  const bar = $("demoBar");
+  bar.classList.toggle("collapsed");
+  $("demoToggle").textContent = bar.classList.contains("collapsed") ? "表示" : "非表示";
+});
+
+// テーマ（位置情報モックと同じく body に light クラスを持たせず data-theme で切替）
+const themeBtns = [$("themeLight"), $("themeDark")];
+function applyTheme(light){
+  state.light = light;
+  document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
+  themeBtns.forEach(b=>{
+    const isLight = b.id === "themeLight";
+    b.classList.toggle("active", isLight === light);
+    b.setAttribute("aria-pressed", isLight === light ? "true" : "false");
+  });
+  try { localStorage.setItem("ei-theme", light ? "light" : "dark"); } catch(e){}
+  render(false);
+}
+$("themeLight").addEventListener("click", ()=> applyTheme(true));
+$("themeDark").addEventListener("click", ()=> applyTheme(false));
+
+document.addEventListener("keydown", e=>{
+  if (e.target.matches("input,select,textarea")) return;
+  if (e.code === "Space"){ e.preventDefault(); $("playBtn").click(); }
+  if (e.key === "ArrowRight"){ setPlaying(false); jumpTo(state.t + 300); }
+  if (e.key === "ArrowLeft"){ setPlaying(false); jumpTo(state.t - 300); }
+});
+
+window.addEventListener("resize", ()=>{ const c = byId(); if (c) renderChart(c); });
+
+// 起動
+(function init(){
+  const q = new URLSearchParams(location.search);
+  const cid = q.get("case");
+  if (cid && CASES.some(c=>c.id===cid)) state.caseId = cid;
+  const t = Number(q.get("t"));
+  if (!isNaN(t) && q.has("t")) state.t = clamp(t, 0, WINDOW_SEC);
+  if (q.get("start") === "now") state.t = WINDOW_SEC;
+  let light = false;
+  try { if (localStorage.getItem("ei-theme") === "light") light = true; } catch(e){}
+  applyTheme(light);
+  lastReal = performance.now();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
