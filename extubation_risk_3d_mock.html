@@ -119,6 +119,20 @@
   .clock{
     position:fixed;left:280px;right:0;top:48px;z-index:5;padding:14px 0 0;text-align:center;pointer-events:none;
   }
+  .spanbar{
+    position:fixed;left:290px;top:56px;z-index:6;display:flex;align-items:center;gap:7px;
+    font-size:11px;color:var(--sub);background:color-mix(in srgb,var(--panel) 82%,transparent);
+    border:1px solid var(--line);border-radius:999px;padding:3px 10px;
+  }
+  .spanbar .k{letter-spacing:.04em}
+  .spanbar b{color:var(--ink);font-weight:650}
+  .spanbar .hint{opacity:.55;font-size:10px}
+  .spanbtn{
+    border:1px solid var(--line);background:transparent;color:var(--sub);
+    border-radius:6px;font-size:10px;line-height:1;padding:3px 5px;cursor:pointer;
+  }
+  .spanbtn:hover,.spanbtn.on{border-color:var(--cyan);color:var(--cyan)}
+  @media(max-width:900px){ .spanbar{left:8px;top:auto;bottom:56px} .spanbar .hint{display:none} }
   .clock .t{font-size:clamp(28px,4vw,44px);font-weight:300;letter-spacing:.02em;line-height:1.1;text-shadow:0 0 24px rgba(79,209,255,.35)}
   .clock .a{font-size:11px;color:var(--sub);letter-spacing:.12em}
   .clock .voice{
@@ -211,18 +225,57 @@
     .log{left:226px;width:200px}
     .hud{width:206px}
   }
-  @media(max-width:700px){
-    body{overflow:auto}
-    .sidebar{position:static;width:auto;height:auto;max-height:42vh;border-right:0;border-bottom:1px solid var(--line);margin-top:48px}
-    .pat-list{flex-direction:row;overflow-x:auto}
-    .pat-card{min-width:210px}
+  @media(max-width:820px){
+    .mob3d-bar{display:flex !important}
+    body{overflow:auto;padding-bottom:calc(66px + env(safe-area-inset-bottom))}
+    .sidebar{position:static;width:auto;height:auto;max-height:none;border-right:0;border-bottom:1px solid var(--line);margin-top:52px}
+    .pat-list{flex-direction:column;overflow-y:auto;max-height:60vh}
     .sb-note{display:none}
-    #stage{position:static;height:56vh;margin-top:0}
-    .clock{position:static;padding-top:10px}
-    .hud{position:static;width:auto;margin:10px 12px}
-    .log{position:static;width:auto;margin:10px 12px 20px}
+    #stage{position:static;height:46vh;margin-top:0}
+    .clock{position:static;left:auto;right:auto;padding-top:8px;text-align:center}
+    .clock .t{font-size:30px}
+    .hud{position:static;width:auto;margin:8px 10px;padding:12px;order:-1}
+    .hud .num{font-size:48px}
+    .log{position:static;width:auto;margin:8px 10px 16px}
     .legend{display:none}
+    .spanbar{position:static;left:auto;margin:6px 10px}
+    /* 患者ビュー: 確率 → 3D → バイタル（一覧は list だけ） */
+
+    body.mode-detail #stage{display:block;height:52vh}
+    .mob3d-bar{
+      display:flex;gap:8px;align-items:center;position:sticky;top:0;z-index:30;
+      padding:8px 10px;background:var(--bg);border-bottom:1px solid var(--line);
+      font-size:12.5px;color:var(--sub);
+    }
+    .mob3d-bar #mob3dBack{display:none}
+    body.mode-detail .mob3d-bar #mob3dBack{display:inline-flex}
+    .mob3d-bar .btn{height:34px;padding:0 12px;border-radius:999px}
+    .mob3d-bar b{color:var(--cyan)}
+    #demoBar{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:70;height:auto;padding:6px 8px;border-top:1px solid var(--line);border-bottom:0}
+    #demoBody{gap:6px}
+    #slider{flex:1 1 100%;order:9;margin:0}
+    .ps-label{display:none}
+    #speedSel{max-width:88px}
   }
+  @media(max-width:820px) and (orientation:landscape){
+    body.mode-detail #stage{height:70vh}
+  }
+  /* スマホ以外ではリスト切替バーは出さない */
+  /* スマホ: 一覧 ⇄ 患者ビュー */
+  @media(max-width:820px){
+    body.mode-detail .sidebar{display:none !important}
+    body.mode-detail .hud{margin-top:8px !important}
+  }
+  @media(max-width:820px){
+    body.mode-detail{display:flex !important;flex-direction:column;overflow:auto;padding-bottom:calc(66px + env(safe-area-inset-bottom))}
+    body.mode-detail .hud{order:1 !important;position:static !important;left:auto !important;right:auto !important;top:auto !important;width:auto !important;margin:8px 10px !important}
+    body.mode-detail #stage{order:2 !important}
+    body.mode-detail .clock{order:3 !important;position:static !important;left:auto !important;right:auto !important;top:auto !important}
+    body.mode-detail .spanbar{order:4 !important;position:static !important;left:auto !important}
+    body.mode-detail .log{order:5 !important;position:static !important;width:auto !important}
+    body.mode-detail .mob3d-bar{order:0 !important}
+  }
+  .mob3d-bar{display:none}
 </style>
 </head>
 <body>
@@ -242,7 +295,6 @@
     </select>
     <span class="ps-label">時刻</span>
     <input type="range" id="slider" min="0" max="86400" step="1" value="0" aria-label="時刻">
-    <button class="btn" id="nowBtn">現在へ</button>
     <button class="btn" id="voiceBtn" title="声のオン/オフ">🔊 声 ON</button>
     <button class="btn icon" id="voiceUnknownBtn" title="「知らんけど」を鳴らす（欠測で計算できない状態）">知らんけど</button>
     <button class="btn icon" id="voiceLoadingBtn" title="「ちょっと待ってなぁ」を鳴らす（計算中）">読み込み中</button>
@@ -272,12 +324,24 @@
   <div class="sb-note">選んだ患者の線を強調し、声をその患者の推移で切り替えます。</div>
 </aside>
 
+<div class="mob3d-bar">
+  <button type="button" class="btn" id="mob3dBack" aria-label="患者一覧に戻る">‹ 患者一覧</button>
+  <span>患者を選ぶ <b id="mob3dCount">-</b></span>
+</div>
+
 <div id="stage"><canvas id="scene"></canvas></div>
 
 <div class="clock">
   <div class="t tabular" id="clockT">08:30:00</div>
   <div class="a" id="clockA">24時間前から</div>
-  <div class="voice" id="voiceNow"><i></i><span>—</span></div>
+  <div class="voice" id="voiceNow"><i></i><span>?</span></div>
+</div>
+
+<div class="spanbar" role="group" aria-label="表示範囲">
+  <span class="k">表示</span>
+  <b class="tabular" id="spanNow">24時間</b>
+  <button type="button" class="spanbtn" id="spanReset" title="24時間表示に戻す" aria-label="24時間表示に戻す">24h</button>
+  <span class="hint">Shift+ホイール／ピンチで拡大</span>
 </div>
 
 <div class="hud" id="hud">
@@ -347,6 +411,38 @@ const START_SEC = 8*3600 + 30*60;
 const WINDOW_SEC = 86400;
 const $ = id => document.getElementById(id);
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+// ===== 時間軸の表示範囲（ズーム）=====
+// spanH: 箱の手前（=現在）から遡る時間。24 = 24時間、0.17 = 10分
+const SPAN_MIN_H = 10/60, SPAN_MAX_H = 24;
+const tz = { spanH: SPAN_MAX_H };
+function setSpanH(h){
+  tz.spanH = clamp(h, SPAN_MIN_H, SPAN_MAX_H);
+  updateSpanLabel();
+}
+function spanTextH(h){
+  const m = Math.round(h * 60);
+  if (m >= 1440) return "24時間";
+  if (m >= 60){ const hh = m / 60; return (Number.isInteger(hh) ? hh : hh.toFixed(1)) + "時間"; }
+  return m + "分";
+}
+// 箱の中の f（0 = 左端＝今から spanH 前、1 = 右端＝現在）の実時刻(秒)
+function fToTSec(f){ return WINDOW_SEC - (1 - f) * tz.spanH * 3600; }
+// 目盛のラベル
+function tickLabels(){
+  const out = [];
+  for (let i=0;i<=4;i++){
+    const back = tz.spanH * (1 - i/4);
+    out.push({f: i/4, text: back <= 0.001 ? "現在" : "-" + spanTextH(back)});
+  }
+  return out;
+}
+function updateSpanLabel(){
+  const el = $("spanNow");
+  if (el) el.textContent = spanTextH(tz.spanH);
+  const r = $("spanReset");
+  if (r) r.classList.toggle("on", tz.spanH < SPAN_MAX_H);
+}
 
 const state = {
   caseId:null, query:"", t:0, playing:false, speed:1, voice:true, light:false,
@@ -686,13 +782,15 @@ function drawBox(){
   line([0,0,0],[1,0,0],c1,1.2);
   line([0,0,0],[0,1,0],c1,1.2);
   // 軸ラベル（時間軸: 箱の奥左手前が 24h前、奥右手前が 現在）
-  text3d(0, -0.14, 0, "24時間前", tickCol(), 10);
-  text3d(1, -0.14, 0, "現在", tickCol(), 10);
-  [0,0.25,0.5,0.75,1].forEach(f=>{
-    const back = Math.round((1-f)*24);
-    if (back !== 0 && back !== 24) text3d(f, 0.03, 1.20, back + "h前", tickCol(), 8.5);
+  // ズームに合わせて目盛を振り直す
+  const ticks = tickLabels();
+  ticks.forEach((tk, i)=>{
+    const f = i/(ticks.length-1);
+    const back = tz.spanH * (1 - f);
+    text3d(f, -0.14, 0, tk.text, tickCol(), 9.5);
+    if (back > 0.001) text3d(f, 0.03, 1.20, back >= 1 ? Math.round(back) + "h前" : Math.round(back*60) + "m前", tickCol(), 8.5);
   });
-  text3d(0.5,-0.20,0,"時間（24時間前 → 現在）", labelCol(), 11);
+  text3d(0.5,-0.20,0,`時間（${spanTextH(tz.spanH)}前 → 現在）`, labelCol(), 11);
   text3d(0.5, 1.02, 0.5, "ベッド幅", labelCol(), 10);
   text3d(-0.06,1.0,1.4,"失敗確率", labelCol(), 11.5,"right");
   // 確率の目盛（0/50/100%）
@@ -713,7 +811,7 @@ function drawPatientWave(){
   const cat = catOf(riskAtT(c, state.t));
   const idx = 1;  // 箱の右端が「現在」。8:30時点でも24時間分の履歴がある想定
 
-  const pt = f => project(f, 0.5, riskAtT(c, f*WINDOW_SEC));
+  const pt = f => project(f, 0.5, riskAtT(c, fToTSec(f)));
 
   // 影（床への投影）
   ctx.save();
@@ -783,7 +881,7 @@ const PARAMS = [
   {key:"hr",   label:"心拍数", lo:60, hi:140, color:"#ff8fb0", badUp:true}
 ];
 function paramAt(c, key, f){
-  return snapshotAt(c, (1 - f) * 24)[key];
+  return snapshotAt(c, (1 - f) * tz.spanH)[key];
 }
 function drawParamTransitions(){
   const c = selectedCase();
@@ -907,6 +1005,7 @@ function renderList(){
     return terms.every(t=>hay.includes(t));
   });
   $("patCount").textContent = rows.length + "件";
+  const mc = $("mob3dCount"); if (mc) mc.textContent = rows.length + "件";
   const list = $("patList");
   if (!rows.length){ list.innerHTML = '<div class="pat-empty">該当する患者がありません</div>'; return; }
   list.innerHTML = "";
@@ -933,12 +1032,25 @@ function selectCase(id){
   const wasMissing = demoMode.missing;
   renderList();
   syncHud();
+  setDetailMode(!!id);   // スマホは詳細ビューへ
   // 選択したら一瞬「計算中」の見せ場をはさむ（ちょっと待ってなぁ → 通常の状態の声）
   if (unlocked && !wasMissing){
     flashBusy(2000);
   } else {
     checkVoice(selectedCase(), state.t, true);
   }
+}
+
+// ===== スマホ専用: 一覧 ⇄ 患者ビュー =====
+const isMobile = () => matchMedia("(max-width: 820px)").matches;
+function setDetailMode(on){
+  document.body.classList.toggle("mode-detail", !!on);
+  if (on) window.scrollTo(0, 0);
+  resize();
+}
+function syncMobileMode(){
+  if (!isMobile()){ document.body.classList.remove("mode-detail"); return; }
+  setDetailMode(!!state.caseId);
 }
 
 function draw(now){
@@ -1010,7 +1122,6 @@ $("playBtn").addEventListener("click", ()=>{
   if (!state.playing && state.t >= WINDOW_SEC) state.t = 0;
   setPlaying(!state.playing);
 });
-$("nowBtn").addEventListener("click", ()=>{ setPlaying(false); state.t = WINDOW_SEC; syncHud(); renderList(); });
 $("speedSel").addEventListener("change", e=>{ state.speed = Number(e.target.value); });
 $("slider").addEventListener("input", e=>{
   setPlaying(false);
@@ -1057,7 +1168,36 @@ canvas.addEventListener("pointermove", e=>{
 function endDrag(){ dragging = false; canvas.classList.remove("dragging"); }
 canvas.addEventListener("pointerup", endDrag);
 canvas.addEventListener("pointercancel", endDrag);
-canvas.addEventListener("wheel", e=>{ e.preventDefault(); state.zoom = clamp(state.zoom*(e.deltaY>0?0.93:1.07), 0.6, 2.0); }, {passive:false});
+// ドラッグ: 上ドラッグで拡大（箱の大きさ）、左右は回転
+canvas.addEventListener("wheel", e=>{
+  e.preventDefault();
+  if (e.shiftKey){
+    // Shift + ホイール: 時間軸のズーム
+    setSpanH(tz.spanH * (e.deltaY > 0 ? 1.18 : 1/1.18));
+  } else {
+    state.zoom = clamp(state.zoom*(e.deltaY>0?0.93:1.07), 0.6, 2.0);
+  }
+}, {passive:false});
+
+// ピンチ（2本指）: 時間軸のズーム
+let pinch0 = null;
+canvas.addEventListener("touchstart", e=>{
+  if (e.touches.length === 2) pinch0 = { d: Math.hypot(
+    e.touches[0].clientX - e.touches[1].clientX,
+    e.touches[0].clientY - e.touches[1].clientY), span: tz.spanH };
+}, {passive:true});
+canvas.addEventListener("touchmove", e=>{
+  if (e.touches.length === 2 && pinch0){
+    e.preventDefault();
+    const d = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY);
+    setSpanH(pinch0.span / Math.max(0.2, d / Math.max(1, pinch0.d)));
+  }
+}, {passive:false});
+canvas.addEventListener("touchend", ()=>{ pinch0 = null; }, {passive:true});
+const spanReset = $("spanReset");
+if (spanReset) spanReset.addEventListener("click", ()=> setSpanH(SPAN_MAX_H));
 
 // 初回操作で音声を解禁
 $("startBtn").addEventListener("click", ()=>{
@@ -1142,7 +1282,8 @@ function flashBusy(ms = 2000){
 $("voiceUnknownBtn").addEventListener("click", ()=> setDemoMode("missing"));
 $("voiceLoadingBtn").addEventListener("click", ()=> setDemoMode("busy"));
 
-addEventListener("resize", ()=>{ resize(); });
+addEventListener("resize", ()=>{ resize(); syncMobileMode(); });
+const m3b = $("mob3dBack"); if (m3b) m3b.addEventListener("click", ()=> setDetailMode(false));
 
 // ===== 起動 =====
 (function init(){
@@ -1162,8 +1303,12 @@ addEventListener("resize", ()=>{ resize(); });
   if (q.get("go") === "1"){
     const f = $("first"); if (f) f.remove();
     unlocked = true; preloadVoices(); unlockAudio();
-    setPlaying(true);
   }
+  // 自動再生（停止ボタンは無し）。終端まで来たら先頭に戻って繰り返す
+  if (q.get("pause") !== "1") setPlaying(true);
+  resize();
+  syncHud();
+  updateSpanLabel();
   lastReal = performance.now();
   requestAnimationFrame(frame);
 })();

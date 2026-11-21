@@ -181,6 +181,14 @@
   .chart-cursor{position:absolute;top:0;bottom:18px;width:1px;background:var(--amber);pointer-events:none}
   .chart-tip{position:absolute;top:-2px;transform:translateX(-50%);font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;white-space:nowrap;pointer-events:none;color:var(--ink)}
   .x-axis{display:flex;justify-content:space-between;font-size:10px;color:var(--sub);margin-top:2px}
+  .chart-range{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:11px;color:var(--sub)}
+  .chart-range b{color:var(--ink);font-weight:600}
+  .chart-reset{
+    border:1px solid var(--line);background:var(--panel);color:var(--sub);
+    border-radius:6px;font-size:10px;line-height:1;padding:3px 6px;cursor:pointer;
+  }
+  .chart-reset:hover{border-color:var(--blue);color:var(--blue)}
+  .chart-box{cursor:zoom-in}
 
   /* 原因 */
   .cause{display:flex;flex-direction:column;gap:9px}
@@ -204,6 +212,7 @@
   /* 狭い画面: 患者一覧はドロワー（サイドバー）から選ぶ */
   .mob-bar{display:none}
   .mob-backdrop{display:none}
+  .mob-close{display:none}
   @media(max-width:900px){
     .layout{grid-template-columns:1fr}
     .list{
@@ -224,6 +233,7 @@
     }
     .mob-open b{color:var(--cyan)}
     .mob-close{
+      display:inline-block;
       margin-left:auto;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);
       background:transparent;color:var(--sub);font-size:16px;line-height:1;cursor:pointer;
     }
@@ -274,7 +284,119 @@
   .layout>*{min-width:0}
   .card,.hero{min-width:0}
   .hero-grid>*{min-width:0}
-}</style>
+}/* ===== スマホ専用レイアウト（PCと同じHTMLをCSSで組み替える） =====
+   ・画面いっぱいの患者リスト → 選ぶと患者ビュー（戻るボタンで一覧へ）
+   ・操作は下部に固定（倍速・再生位置・拡大ヒント）
+   ・確率は画面上部に大きく、中身は縦1列
+*/
+.mob-only{display:none}
+
+@media(max-width:820px){
+  :root{--radius:14px}
+  html,body{overflow-x:hidden}
+  body{font-size:13px}
+
+  /* デモ帯は上下に分割し、操作系を下部に固定 */
+  #demoBar{
+    position:fixed;left:0;right:0;bottom:0;top:auto;z-index:70;padding:6px 8px;
+    border-top:1px solid var(--line);border-bottom:0;background:var(--strip);
+    gap:6px;
+  }
+  #demoBody{flex:1 1 100%;gap:6px}
+  .wrap{padding:8px 8px calc(72px + env(safe-area-inset-bottom));display:block}
+  .head{padding:0 2px 8px}
+  .head h1{font-size:15px}
+  .head p{display:none}
+  .clock{padding:3px 8px;font-size:10px;border-radius:8px}
+  .head{flex-wrap:nowrap;align-items:center}
+  .head>div:first-child{min-width:0}
+  .head h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .clock b{font-size:12px}
+
+  /* レイアウトは1列。患者リストは全画面に */
+  .layout{display:block}
+  .list{
+    position:fixed;inset:0 0 0 0;z-index:60;border-radius:0;border:0;padding:0;
+    display:flex;flex-direction:column;background:var(--bg);
+    padding-bottom:calc(72px + env(safe-area-inset-bottom));
+  }
+  .list-head{
+    position:sticky;top:0;z-index:2;background:var(--bg);
+    padding:10px 12px 8px;border-bottom:1px solid var(--line);
+  }
+  .list-head h2{font-size:12px}
+  .pat-list{padding:10px 12px;gap:8px;overflow-y:auto;flex:1}
+  .pat-card{padding:12px 13px}
+  .pat-name{font-size:14px}
+  .pat-pct{font-size:19px}
+
+  .mob-bar{
+    display:flex;gap:8px;align-items:center;position:sticky;top:0;z-index:30;
+    padding:8px 10px;background:var(--bg);border-bottom:1px solid var(--line);
+  }
+  .mob-open{
+    display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;
+    border-radius:999px;border:1px solid var(--line);background:var(--panel);
+    color:var(--ink);font:600 13px 'Inter','Hiragino Sans','Noto Sans JP',sans-serif;cursor:pointer;
+  }
+  .mob-open b{color:var(--blue)}
+  .mob-back{
+    display:none;align-items:center;gap:4px;height:36px;padding:0 12px 0 8px;
+    border-radius:999px;border:1px solid var(--line);background:var(--panel);
+    color:var(--ink);font:600 12.5px 'Inter','Hiragino Sans','Noto Sans JP',sans-serif;cursor:pointer;
+  }
+  body.mode-detail .mob-back{display:inline-flex}
+  body.mode-detail .mob-open{display:none}
+
+  /* 一覧 ←→ 詳細の切り替え（.wrap は display:block なので grid 子要素の優位は無い） */
+  body:not(.mode-detail) .list{position:relative;inset:auto;transform:none;height:auto;padding-bottom:0}
+  body:not(.mode-detail) .mob-open{display:none}
+  body:not(.mode-detail) .list-head .mob-close{display:none}
+  body.mode-detail .list{display:none !important}
+  body.mode-detail .main-col{display:grid !important;gap:10px}
+  /* モバイルは確率ヒーローを最上部に（患者名はその下） */
+  body.mode-detail #panel{display:flex;flex-direction:column}
+  body.mode-detail #panel>.inner-col{display:contents}
+  body.mode-detail #panel .hero{order:0}
+  body.mode-detail #panel .card:has(.pat-head){order:1}
+  body.mode-detail #panel .two{order:2}
+  body.mode-detail #panel>.right>.card:last-child{order:3}
+  body:not(.mode-detail) .main-col{display:none !important}
+
+  /* 詳細は確率ファーストの縦積み */
+  .right{gap:10px}
+  #panel>.right{display:grid;gap:10px}
+  .hero{order:-1}
+  .hero-grid{grid-template-columns:1fr;gap:6px}
+  .hero-num{font-size:clamp(64px,22vw,96px);line-height:1}
+  .hero-cat{font-size:12px;margin-top:2px}
+  .risk-track{margin:6px 0 2px}
+  .hero-note{font-size:11.5px;line-height:1.6;margin-top:4px}
+  .two{display:grid;grid-template-columns:1fr;gap:10px}
+  .chart-meta{flex-wrap:wrap;gap:2px 8px}
+  .chart-box{height:150px}
+  .chart-tip{font-size:10px}
+  .vitals{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .vital{padding:9px 10px}
+  .vital .v{font-size:19px}
+  .card-pad{padding:11px 12px}
+  .pat-head h2{font-size:16px}
+
+  /* 下部バーの表示調整 */
+  .ps-label{display:none}
+  #speedSel{max-width:88px;flex:none}
+  .btn{padding:3px 8px;font-size:11.5px}
+  .mob-only{display:inline-flex}
+  #demoBar .mob-hint{display:none}
+
+  /* タップ領域を確保 */
+  .theme-toggle button{width:30px;height:28px}
+}
+@media(max-width:820px) and (orientation:landscape){
+  .hero-num{font-size:clamp(48px,12vw,72px)}
+  .chart-box{height:120px}
+}
+</style>
 </head>
 <body>
 
@@ -286,14 +408,14 @@
     <span class="ps-label">倍速</span>
     <select id="speedSel" title="再生速度: ×1=実時間と同じ">
       <option value="1" selected>×1（実時間）</option>
-      <option value="1100">×1100</option>
+      <option value="100">×100</option>
         <option value="10000">×10000</option>
     </select>
     <span class="ps-label">時刻</span>
     <input type="range" id="timeSlider" min="0" max="86400" step="1" value="0"
            title="08:30（24時間前）から始まり、×1で1秒ごとに進みます"
            aria-label="時刻を選ぶ" aria-valuetext="08:30:00から開始">
-    <button class="btn" id="playBtn" aria-label="再生" title="再生 / 停止（Space）">▶ 再生</button>
+    
     <span id="spacer"></span>
     <a class="btn" href="extubation_risk_3d_mock.html" data-view="3d" title="遊び心のある3Dビューへ" aria-label="3Dビュー">3Dビュー</a>
     <div class="theme-toggle" role="group" aria-label="表示テーマ">
@@ -318,6 +440,7 @@
   </div>
 
   <div class="mob-bar">
+    <button type="button" class="mob-back" id="mobBack" aria-label="患者一覧に戻る">‹ 患者一覧</button>
     <button type="button" class="mob-open" id="mobOpen" aria-controls="patList" aria-expanded="false">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       患者を選ぶ <b id="mobCount">-</b>
@@ -340,14 +463,14 @@
     </section>
 
     <!-- 右: 未選択は案内 / 選択後は確率を主役に -->
-    <div class="right">
+    <div class="right main-col">
       <section class="empty-note" id="emptyPanel">
         <b>患者を選んでください</b>
         左のリストから患者を選ぶと、その時点の抜管失敗の確率と原因が表示されます。
       </section>
 
       <div id="panel" hidden>
-        <div class="right">
+        <div class="right inner-col">
           <section class="card card-pad">
             <div class="pat-head">
               <div>
@@ -378,13 +501,20 @@
           <div class="two">
             <section class="card card-pad">
               <div class="card-title"><span>確率の推移</span><span class="chart-legend"><span><i></i>失敗確率</span><span><i class="tgt"></i>25%</span></span></div>
-              <div class="chart-meta"><span>現在 <b id="chartNow">--</b>%</span><span class="tabular" id="chartDelta">-</span></div>
-              <div class="chart-box">
-                <svg id="chartSvg" preserveAspectRatio="none" role="img" aria-labelledby="chartTitle"><title id="chartTitle">24時間の失敗確率の推移</title></svg>
+              <div class="chart-meta">
+                <span>現在 <b id="chartNow">--</b>%</span>
+                <span class="chart-range">
+                  <span class="tabular">表示 <b id="chartSpan">24時間</b></span>
+                  <button type="button" class="chart-reset" id="chartReset" title="24時間表示に戻す" aria-label="24時間表示に戻す">24h</button>
+                </span>
+                <span class="tabular" id="chartDelta">-</span>
+              </div>
+              <div class="chart-box" title="ホイール／ピンチで拡大・縮小（ダブルクリックで24時間）">
+                <svg id="chartSvg" preserveAspectRatio="none" role="img" aria-labelledby="chartTitle"><title id="chartTitle">失敗確率の推移</title></svg>
                 <div class="chart-cursor" id="chartCursor"></div>
                 <div class="chart-tip" id="chartTip"></div>
               </div>
-              <div class="x-axis"><span>24h前</span><span>18h</span><span>12h</span><span>6h</span><span>現在</span></div>
+              <div class="x-axis" id="chartAxis"><span>-24時間</span><span>-18時間</span><span>-12時間</span><span>-6時間</span><span>現在</span></div>
             </section>
 
             <section class="card card-pad">
@@ -442,6 +572,23 @@ const CASES = [
 // 記録の再生は必ず「24時間前の 08:30」から始まり、×1 で 1秒=1秒で 08:30 まで進む
 const START_SEC = 8*3600 + 30*60;
 const WINDOW_SEC = 86400;
+
+// ===== スマホ専用の画面切り替え（一覧 ⇄ 詳細） =====
+// body に mode-detail を付けると詳細、外すと患者一覧（CSSで出し分け）
+const isMobile = () => matchMedia("(max-width: 820px)").matches;
+function setDetailMode(on){
+  document.body.classList.toggle("mode-detail", !!on);
+  if (on){
+    if (typeof closeDrawer === "function") closeDrawer();
+    window.scrollTo(0, 0);
+  }
+  const back = $("mobBack");
+  if (back) back.setAttribute("aria-pressed", on ? "true" : "false");
+}
+function syncMobileMode(){
+  if (!isMobile()){ document.body.classList.remove("mode-detail"); return; }
+  setDetailMode(!!state.caseId);
+}
 
 // ===== 状態 =====
 // t: 再生位置（秒）。0 = 24時間前の 08:30、86400 = 当日の 08:30（現在）
@@ -543,11 +690,88 @@ function failCat(risk){
 const pct = r => (r*100).toFixed(1);
 
 // 24時間の推移（10分刻み。d = 24 → 0 の順＝古い記録から現在へ）
-function series(c){
-  const out = [];
-  for (let m = 0; m <= M0; m += 10){
-    out.push({m, r: predict(c, (M0 - m) / 60).risk});
+// ===== 推移の表示範囲（ズーム）=====
+// spanMin: 右端（現在）から遡る分数。1440 = 24時間、10 = 10分
+const ZOOM_MIN = 10, ZOOM_MAX = M0;
+const zoom = { spanMin: M0 };
+function setSpan(min){
+  zoom.spanMin = clamp(Math.round(min), ZOOM_MIN, ZOOM_MAX);
+  renderChart(byId());
+  renderSpanLabel();
+}
+function spanText(min){
+  const m = Math.round(min);
+  if (m >= 1440) return "24時間";
+  if (m >= 60){
+    const h = m / 60;
+    return (Number.isInteger(h) ? h : h.toFixed(1)) + "時間";
   }
+  return m + "分";
+}
+function renderSpanLabel(){
+  const el = $("chartSpan");
+  if (el){
+    el.textContent = spanText(zoom.spanMin);
+    el.classList.toggle("zoomed", zoom.spanMin < M0);
+  }
+  const xa = $("chartAxis");
+  if (xa){
+    // 目盛を4分割（例: 24h→6h, 1h→15m, 10m→2.5m）
+    const labels = [];
+    for (let i=0;i<=4;i++){
+      const back = zoom.spanMin * (1 - i/4);
+      labels.push(back <= 0 ? "現在" : "-" + spanText(back));
+    }
+    xa.innerHTML = labels.map(v=>`<span>${v}</span>`).join("");
+  }
+}
+// ホイールで拡大縮小（カーソル位置は動かさず、右端=現在を軸に範囲だけ変える）
+(function wireZoom(){
+  const box = $("chartSvg") && $("chartSvg").closest(".chart-box");
+  if (!box) return;
+  box.addEventListener("wheel", e=>{
+    e.preventDefault();
+    const f = e.deltaY > 0 ? 1.18 : 1/1.18;
+    setSpan(zoom.spanMin * f);
+  }, { passive: false });
+
+  // ピンチ（2本指）
+  let pinchFrom = null;
+  box.addEventListener("touchstart", e=>{
+    if (e.touches.length === 2){
+      pinchFrom = { d: touchDist(e.touches), span: zoom.spanMin };
+    }
+  }, { passive: true });
+  box.addEventListener("touchmove", e=>{
+    if (e.touches.length === 2 && pinchFrom){
+      e.preventDefault();
+      const ratio = touchDist(e.touches) / Math.max(1, pinchFrom.d);
+      setSpan(pinchFrom.span / Math.max(0.2, ratio));
+    }
+  }, { passive: false });
+  box.addEventListener("touchend", ()=>{ pinchFrom = null; }, { passive: true });
+
+  const reset = $("chartReset");
+  if (reset) reset.addEventListener("click", ()=> setSpan(M0));
+  // ダブルクリックで24時間に戻す
+  box.addEventListener("dblclick", ()=> setSpan(M0));
+})();
+function touchDist(t){
+  const dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+  return Math.hypot(dx, dy);
+}
+
+function series(c){
+  // 全体は10分刻みで作っておき、表示範囲に応じて間引く／細かくする
+  const back = backMinutes();
+  const span = zoom.spanMin;
+  const step = span <= 30 ? 1 : span <= 120 ? 2 : span <= 360 ? 5 : 10;  // 分
+  const out = [];
+  for (let m = Math.max(0, back - span); m <= back + 0.5; m += step){
+    out.push({m, r: predict(c, m / 60).risk});
+  }
+  // 右端（現在位置）は必ず入れる
+  if (out.length && Math.abs(out[out.length-1].m - back) > 0.5) out.push({m: back, r: predict(c, back / 60).risk});
   return out;
 }
 
@@ -559,17 +783,13 @@ function tick(now){
   lastReal = now;
   if (state.playing){
     state.t = Math.min(WINDOW_SEC, state.t + dt * state.speed);
-    if (state.t >= WINDOW_SEC){ state.t = WINDOW_SEC; setPlaying(false); }
+    if (state.t >= WINDOW_SEC) state.t = 0;  // 終わったら先頭へ戻って繰り返す
     render(false);
   }
   requestAnimationFrame(tick);
 }
 function setPlaying(on){
   state.playing = on;
-  const b = $("playBtn");
-  b.textContent = on ? "❚❚ 停止" : "▶ 再生";
-  b.setAttribute("aria-label", on ? "停止" : "再生");
-  b.classList.toggle("primary", on);
 }
 function jumpTo(t){
   state.t = clamp(t, 0, WINDOW_SEC);
@@ -705,16 +925,34 @@ function renderVitals(c, p){
 
 // ===== 推移チャート（失敗確率。上が危険） =====
 function renderChart(c){
-  const pts = series(c);
   const svg = $("chartSvg");
+  if (!svg) return;
   const box = svg.getBoundingClientRect();
   const W = Math.max(200, box.width), H = Math.max(90, box.height - 18);
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  const lo = 0, hi = Math.max(0.4, Math.ceil(Math.max(...pts.map(p=>p.r)) * 10) / 10);
-  const x = m => m / M0 * (W - 2) + 1;
+  const curMin = backMinutes();
+
+  if (!c){
+    svg.innerHTML = "";
+    $("chartNow").textContent = "--";
+    $("chartDelta").textContent = "-";
+    $("chartCursor").style.display = "none";
+    $("chartTip").style.display = "none";
+    renderSpanLabel();
+    return;
+  }
+  $("chartCursor").style.display = "";
+  $("chartTip").style.display = "";
+
+  const pts = series(c);
+  const hi = Math.max(0.4, Math.ceil(Math.max(...pts.map(p=>p.r)) * 10) / 10);
+  const lo = 0;
+  const back0 = pts.length ? pts[0].m : Math.max(0, curMin - zoom.spanMin);
+  const span = Math.max(1, curMin - back0);
+  const x = m => (1 - (m - back0) / span) * (W - 2) + 1;   // 右端 = いまの位置
   const y = r => H - 2 - (clamp(r,lo,hi) - lo) / (hi - lo) * (H - 4);
   const d = pts.map((p,i)=>`${i?"L":"M"}${x(p.m).toFixed(1)},${y(p.r).toFixed(1)}`).join(" ");
-  const area = `${d} L${W-1},${H} L1,${H} Z`;
+  const area = `${d} L${x(pts[pts.length-1].m).toFixed(1)},${H} L${x(pts[0].m).toFixed(1)},${H} Z`;
   const grid = [0, 0.5, 1].map(t=>{
     const yy = y(lo + (hi-lo)*t);
     return `<line x1="0" y1="${yy.toFixed(1)}" x2="${W}" y2="${yy.toFixed(1)}" stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
@@ -724,21 +962,21 @@ function renderChart(c){
     (hi >= 0.25 ? `<line x1="0" y1="${target.toFixed(1)}" x2="${W}" y2="${target.toFixed(1)}" stroke="var(--green)" stroke-width="1.4" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" opacity=".8"/>` : "") +
     `<path d="${area}" fill="var(--blue-soft)"/>` +
     `<path d="${d}" fill="none" stroke="var(--blue)" stroke-width="2.2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` +
-    `<circle cx="${(W-1).toFixed(1)}" cy="${y(pts[pts.length-1].r).toFixed(1)}" r="3" fill="var(--blue)" stroke="var(--panel)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+    `<circle cx="${x(pts[pts.length-1].m).toFixed(1)}" cy="${y(pts[pts.length-1].r).toFixed(1)}" r="3" fill="var(--blue)" stroke="var(--panel)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
 
   const cur = pts[pts.length-1].r, first = pts[0].r;
   $("chartNow").textContent = pct(cur);
   const diff = (cur - first) * 100;
   const badge = $("chartDelta");
-  badge.textContent = `24hで ${diff>=0?"+":""}${diff.toFixed(1)}pt`;
+  badge.textContent = `${spanText(zoom.spanMin)}で ${diff>=0?"+":""}${diff.toFixed(1)}pt`;
   badge.style.color = diff > 0.05 ? "var(--red)" : diff < -0.05 ? "var(--green)" : "var(--sub)";
 
-  const curMin = backMinutes();
-  const left = (M0 - curMin) / M0 * 100;
+  const left = 100;
   $("chartCursor").style.left = left + "%";
   const tip = $("chartTip");
-  tip.style.left = clamp(left, 9, 91) + "%";
-  tip.textContent = `${clockAtT(state.t)} ${pct(predict(c, curMin / 60).risk)}%`;
+  tip.style.left = "88%";
+  tip.textContent = `${clockAtT(state.t)} ${pct(cur)}%`;
+  renderSpanLabel();
 }
 
 // ===== 描画 =====
@@ -763,11 +1001,7 @@ $("timeSlider").addEventListener("input", e=>{
   render(true);
 });
 
-$("playBtn").addEventListener("click", ()=>{
-  if (!state.playing && state.t >= WINDOW_SEC) state.t = 0;
-  lastReal = performance.now();
-  setPlaying(!state.playing);
-});
+// 再生は自動。スライダー操作で位置を変えられるようにするだけ
 
 $("speedSel").addEventListener("change", e=>{ state.speed = Number(e.target.value); });
 
@@ -800,12 +1034,11 @@ $("themeDark").addEventListener("click", ()=> applyTheme(false));
 
 document.addEventListener("keydown", e=>{
   if (e.target.matches("input,select,textarea")) return;
-  if (e.code === "Space"){ e.preventDefault(); $("playBtn").click(); }
   if (e.key === "ArrowRight"){ setPlaying(false); jumpTo(state.t + 300); }
   if (e.key === "ArrowLeft"){ setPlaying(false); jumpTo(state.t - 300); }
 });
 
-window.addEventListener("resize", ()=>{ const c = byId(); if (c) renderChart(c); });
+window.addEventListener("resize", ()=>{ const c = byId(); if (c) renderChart(c); syncMobileMode(); });
 
 // 起動
 (function init(){
@@ -818,9 +1051,13 @@ window.addEventListener("resize", ()=>{ const c = byId(); if (c) renderChart(c);
   let light = false;
   try { if (localStorage.getItem("ei-theme") === "light") light = true; } catch(e){}
   applyTheme(light);
+  if (q.get("pause") !== "1") setPlaying(true);  // 自動で再生（終端は先頭へ戻って繰り返す）
+  syncMobileMode();
   lastReal = performance.now();
+  render(true);
   requestAnimationFrame(tick);
 })();
+
 
 // ===== モバイル: 患者一覧をドロワーで開閉 =====
 function openDrawer(){
@@ -835,6 +1072,7 @@ function closeDrawer(){
 (function initDrawer(){
   const open = $("mobOpen"), close = $("mobClose"), backdrop = $("mobBackdrop");
   if (open) open.addEventListener("click", openDrawer);
+  const back = $("mobBack"); if (back) back.addEventListener("click", ()=> setDetailMode(false));
   if (close) close.addEventListener("click", closeDrawer);
   if (backdrop) backdrop.addEventListener("click", closeDrawer);
   document.addEventListener("keydown", e=>{ if (e.key === "Escape") closeDrawer(); });
