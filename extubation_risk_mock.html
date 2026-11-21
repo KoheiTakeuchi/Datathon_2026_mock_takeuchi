@@ -285,10 +285,8 @@
   <div id="demoBody">
     <span class="ps-label">倍速</span>
     <select id="speedSel" title="再生速度: ×1=実時間と同じ">
-      <option value="1">×1（実時間）</option>
-      <option value="10">×10</option>
-      <option value="60">×60</option>
-      <option value="1100" selected>×1100</option>
+      <option value="1" selected>×1（実時間）</option>
+      <option value="1100">×1100</option>
         <option value="10000">×10000</option>
     </select>
     <span class="ps-label">時刻</span>
@@ -451,7 +449,7 @@ const state = {
   caseId:null,
   t:0,
   playing:false,
-  speed:1100,
+  speed:1,
   query:"",
   light:false
 };
