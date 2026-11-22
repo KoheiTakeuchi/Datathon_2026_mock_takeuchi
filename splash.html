@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>抜管予報 — 読み込み中</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --panel:#ffffff; --ink:#101826; --sub:#5b6b80;
+    --line:#e3e8ef; --blue:#1f6feb; --track:#eef1f6;
+    color-scheme:light dark;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1017; --panel:#121926; --ink:#e9eff7; --sub:#8d9cb2;
+           --line:#223044; --blue:#61a8ff; --track:#1b2737; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:"Inter","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .wrap{width:min(360px,82vw);text-align:center}
+  .brand{font-size:19px;font-weight:700;letter-spacing:.01em}
+  .sub{font-size:12px;color:var(--sub);margin-top:2px}
+  .bar{height:6px;border-radius:999px;background:var(--track);overflow:hidden;margin-top:26px}
+  .bar i{display:block;height:100%;width:38%;border-radius:999px;background:var(--blue);
+         animation:slide 1.15s cubic-bezier(.45,.05,.35,1) infinite}
+  @keyframes slide{
+    0%{transform:translateX(-110%)}
+    100%{transform:translateX(300%)}
+  }
+  .msg{font-size:12px;color:var(--sub);margin-top:12px;min-height:18px}
+  .skip{margin-top:18px;font-size:12px;color:var(--sub);text-decoration:underline;
+        cursor:pointer;background:none;border:none;font-family:inherit}
+  .skip:hover{color:var(--ink)}
+  .spinner{width:28px;height:28px;margin:0 auto 14px;border-radius:50%;
+    border:3px solid var(--track);border-top-color:var(--blue);animation:spin 0.9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){
+    .bar i{animation:none;width:100%}
+    .spinner{animation:none}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="spinner" aria-hidden="true"></div>
+    <div class="brand">抜管予報</div>
+    <div class="sub">患者の記録を読み込んでいます</div>
+    <div class="bar" role="progressbar" aria-label="読み込み中"><i></i></div>
+    <div class="msg">このまましばらくお待ちください</div>
+    <button class="skip" type="button" onclick="location.reload()">画面が切り替わらないときは再読み込み</button>
+  </div>
+</body>
+</html>
